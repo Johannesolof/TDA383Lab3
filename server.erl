@@ -30,12 +30,14 @@ findClient(St, Pid, Nick) ->
     {_,_} -> findClient(T, St, Nick)
   end.
 
-
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = findClient(St, Pid, Nick),
 
   io:fwrite("Server: ~p is connected~n", [Pid]),
   {reply, Response, NewSt};
+
+handle(St, {isConnected, Pid}) ->
+  {reply, lists:keymember(Pid, 1, St#server_st.clients), St};
 
 handle(St, Request) ->
   io:fwrite("Server: recived request ~p~n", [Request]),

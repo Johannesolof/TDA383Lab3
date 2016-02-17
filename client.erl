@@ -65,7 +65,8 @@ handle(St, whoami) ->
 
 %% Change nick
 handle(St, {nick, Nick}) ->
-  Result = case % new server method of 
+  Response = genserver:request(St#client_st.server, {isConnected, self()}),
+  Result = case Response of 
     true ->
       {reply, {error, user_already_connected, "Changing name while connected to a server is prohibited!"}, St};
     false ->
