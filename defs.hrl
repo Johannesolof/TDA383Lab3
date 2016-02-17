@@ -2,7 +2,7 @@
 % Add whatever other fields you need.
 % It contains the following fields:
 %   gui: the name (or Pid) of the GUI process.
--record(client_st, { gui, nick }).
+-record(client_st, { gui, nick, connected }).
 
 % This record defines the structure of the server process.
 % Add whatever other fields you need.

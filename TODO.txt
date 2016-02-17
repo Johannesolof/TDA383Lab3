@@ -9,8 +9,8 @@ TASKS:
                     * Return response ¬
 
         – CLIENT:
-                    * Match response from server
-                    * Update connected var in client state
+                    * Match response from server ¬
+                    * Update connected var in client state ¬
 
     # Disconnect from server
         – CLIENT:   Send request to server with PId

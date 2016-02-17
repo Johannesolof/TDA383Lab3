@@ -8,7 +8,7 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
-  #client_st { gui = GUIName , nick = Nick}.
+  #client_st { gui = GUIName , nick = Nick, connected = false }.
 
 %% ---------------------------------------------------------------------------
 
@@ -25,7 +25,8 @@ handle(St, {connect, Server}) ->
   Response = genserver:request(ServerAtom, {connect, self(), St#client_st.nick}),
   Result = case Response of
     connected -> 
-      {reply, ok, St} ;
+      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick, connected = true }
+      {reply, ok, NewSt} ;
     user_already_connected ->
       {reply, {error, user_already_connected, "Already connected!"}, St} ;
     nick_taken ->
