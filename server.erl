@@ -17,12 +17,23 @@ initial_state(ServerName) ->
 %% current state), performing the needed actions, and returning a tuple
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
+findClient(St, Pid, Nick) when St#server_st.clients == [] ->
+  {connected, #server_st{ name = St#server_st.name,
+            clients = [{Pid, Nick} | St#server_st.clients]}};
 
-handle(St, {connect, Pid}) ->
-  NewSt = #server_st{ name = St#server_st.name, clients = [Pid | St#server_st.clients]},
-  
-  Response = connected,
-  io:fwrite("Server: ~p is connected~n", Pid),
+findClient(St, Pid, Nick) ->
+  [H|T] = St#server_st.clients,
+  case H of
+    {Pid,_} -> {user_already_connected, St};
+    {_,Nick} -> {nick_taken, St};
+    {_,_} -> findClient(T, St, Nick)
+  end.
+
+
+handle(St, {connect, Pid, Nick}) ->
+  {Response, NewSt} = findClient(St, Pid, Nick),
+
+  io:fwrite("Server: ~p is connected~n", [Pid]),
   {reply, Response, NewSt};
 
 handle(St, Request) ->
