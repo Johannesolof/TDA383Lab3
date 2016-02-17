@@ -54,7 +54,7 @@ handle(St, disconnect) ->
     _ ->
       {reply, {error, failed, "Unkown response: "++Response}, St}
   end,
-  Result ;
+  %Result ;
   {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 % Join channel
