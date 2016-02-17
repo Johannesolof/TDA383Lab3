@@ -18,8 +18,9 @@ initial_state(ServerName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
 findClient(St, Pid, Nick) when St#server_st.clients == [] ->
-  {connected, #server_st{ name = St#server_st.name,
-            clients = [{Pid, Nick} | St#server_st.clients]}};
+  NewSt = #server_st{ name = St#server_st.name,
+            clients = [{Pid, Nick} | St#server_st.clients]},
+  {connected, NewSt};
 
 findClient(St, Pid, Nick) ->
   [H|T] = St#server_st.clients,

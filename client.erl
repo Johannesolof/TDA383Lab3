@@ -24,8 +24,8 @@ handle(St, {connect, Server}) ->
   ServerAtom = list_to_atom(Server),
   Response = genserver:request(ServerAtom, {connect, self(), St#client_st.nick}),
   Result = case Response of
-    connected -> 
-      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick, connected = true }
+    connected ->
+      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick, connected = true },
       {reply, ok, NewSt} ;
     user_already_connected ->
       {reply, {error, user_already_connected, "Already connected!"}, St} ;
