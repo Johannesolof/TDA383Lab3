@@ -22,10 +22,14 @@ initial_state(Nick, GUIName) ->
 %% Connect to server
 handle(St, {connect, Server}) ->
   ServerAtom = list_to_atom(Server),
-  Response = genserver:request(ServerAtom, {connect, St.nick}),
+  Response = genserver:request(ServerAtom, {connect, self()}),
   Result = case Response of
-    connected ->  {reply, ok, St} ;
-    _ -> {reply, {error, failed, "Failed to connect!"}, St}
+    connected ->
+      {reply, ok, St} ;
+    user_already_connected ->
+      {reply, {error, user_already_connected, "Already connected!"}, St} ;
+    _ ->
+      {reply, {error, failed, "Failed to connect!"}, St}
   end,
   Result;
   %io:fwrite("Client received: ~p~n", [Response]),
