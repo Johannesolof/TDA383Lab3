@@ -25,14 +25,16 @@ handle(St, {connect, Server}) ->
   Response = genserver:request(ServerAtom, {connect, self(), St#client_st.nick}),
   Result = case Response of
     connected ->
-      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick },
+      NewSt = #client_st{ gui = St#client_st.gui,
+                          nick = St#client_st.nick,
+                          server = ServerAtom },
       {reply, ok, NewSt} ;
     user_already_connected ->
       {reply, {error, user_already_connected, "Already connected!"}, St} ;
     nick_taken ->
       {reply, {error, nick_taken, "Nick already taken!"}, St} ;
     _ ->
-      {reply, {error, failed, "Failed to connect!"}, St}
+      {reply, {error, failed, "Unkown response: "++Response}, St}
   end,
   Result;
   %io:fwrite("Client received: ~p~n", [Response]),
@@ -41,11 +43,23 @@ handle(St, {connect, Server}) ->
 
 %% Disconnect from server
 handle(St, disconnect) ->
-  % {reply, ok, St} ;
+  Response = todo,%genserver:request(ServerAtom, {disconnect, self()}),
+  Result = case Response of
+    disconnected ->
+      NewSt = #client_st{ gui = St#client_st.gui,
+                          nick = St#client_st.nick },
+      {reply, ok, NewSt} ;
+    user_not_connected ->
+      {reply, {error, user_not_connected, "User not connected!"}, St} ;
+    _ ->
+      {reply, {error, failed, "Unkown response: "++Response}, St}
+  end,
+  Result ;
   {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 % Join channel
 handle(St, {join, Channel}) ->
+
   % {reply, ok, St} ;
   {reply, {error, not_implemented, "Not implemented"}, St} ;
 
@@ -66,7 +80,7 @@ handle(St, whoami) ->
 %% Change nick
 handle(St, {nick, Nick}) ->
   Response = genserver:request(St#client_st.server, {isConnected, self()}),
-  Result = case Response of 
+  Result = case Response of
     true ->
       {reply, {error, user_already_connected, "Changing name while connected to a server is prohibited!"}, St};
     false ->

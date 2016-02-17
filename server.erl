@@ -32,8 +32,7 @@ findClient(St, Pid, Nick) ->
 
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = findClient(St, Pid, Nick),
-
-  io:fwrite("Server: ~p is connected~n", [Pid]),
+  io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
   {reply, Response, NewSt};
 
 handle(St, {isConnected, Pid}) ->
