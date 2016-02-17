@@ -7,7 +7,7 @@
 
 % Produce initial state
 initial_state(ServerName) ->
-    #server_st{}.
+  #server_st{ name = ServerName}.
 
 %% ---------------------------------------------------------------------------
 
@@ -18,8 +18,17 @@ initial_state(ServerName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
 
+handle(St, {connect, Nick}) ->
+  lists:append(St#server_st.clients, Nick),
+  Response = connected,
+  consoleMsg("~p is connected~n", [St#server_st.clients]),
+  {reply, Response, St};
+
 handle(St, Request) ->
-    io:fwrite("Server received: ~p~n", [Request]),
-    Response = "hi!",
-    io:fwrite("Server is sending: ~p~n", [Response]),
-    {reply, Response, St}.
+  consoleMsg("recived request ~p~n", [Request]),
+  Response = "unkown",
+  io:fwrite("Server: unkown request~n"),
+  {reply, Response, St}.
+
+consoleMsg(Msg, Arg) ->
+  io:fwrite("Server: " ++ Msg, Arg).
