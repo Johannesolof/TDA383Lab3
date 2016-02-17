@@ -8,7 +8,7 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
-  #client_st { gui = GUIName , nick = Nick, connected = false }.
+  #client_st { gui = GUIName , nick = Nick}.
 
 %% ---------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ handle(St, {connect, Server}) ->
   Response = genserver:request(ServerAtom, {connect, self(), St#client_st.nick}),
   Result = case Response of
     connected ->
-      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick, connected = true },
+      NewSt = #client_st{ gui = St#client_st.gui, nick = St#client_st.nick },
       {reply, ok, NewSt} ;
     user_already_connected ->
       {reply, {error, user_already_connected, "Already connected!"}, St} ;
@@ -61,13 +61,18 @@ handle(St, {msg_from_GUI, Channel, Msg}) ->
 
 %% Get current nick
 handle(St, whoami) ->
-  {reply, ok, St} ;
-  %{reply, {error, not_implemented, "Not implemented"}, St} ;
+  {reply, St#client_st.nick, St} ;
 
 %% Change nick
 handle(St, {nick, Nick}) ->
-  {reply, ok, St} ;
-  %{reply, {error, not_implemented, "Not implemented"}, St} ;
+  Result = case % new server method of 
+    true ->
+      {reply, {error, user_already_connected, "Changing name while connected to a server is prohibited!"}, St};
+    false ->
+      NewSt = #client_st{ gui = St#client_st.gui, nick = Nick },
+      {reply, ok, NewSt}
+  end,
+  Result;
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
