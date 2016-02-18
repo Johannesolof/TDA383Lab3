@@ -13,15 +13,17 @@ TASKS:
                     * Update connected var in client state ¬
 
     # Disconnect from server
-        – CLIENT:   Send request to server with PId
+        – CLIENT:   
+                    * Send request to server with PId ¬
+                    * Check if client is connected (otherwise return error message) ???
         – SERVER:
-                    * Remove client from server state
+                    * Remove client from server state ¬
                     * Check if client is connected (otherwise return error message)
                     * Check if client has left all channels
                     * Return response
 
         – CLIENT:
-                    * Match response from server 
+                    * Match response from server ¬
                     * Update connected var in client state ¬
 
 

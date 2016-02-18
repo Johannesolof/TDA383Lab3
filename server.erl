@@ -17,23 +17,32 @@ initial_state(ServerName) ->
 %% current state), performing the needed actions, and returning a tuple
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
-findClient(St, Pid, Nick) when St#server_st.clients == [] ->
+addClient(St, Pid, Nick) when St#server_st.clients == [] ->
   NewSt = #server_st{ name = St#server_st.name,
             clients = [{Pid, Nick} | St#server_st.clients]},
   {connected, NewSt};
 
-findClient(St, Pid, Nick) ->
+addClient(St, Pid, Nick) ->
   [H|T] = St#server_st.clients,
   case H of
     {Pid,_} -> {user_already_connected, St};
     {_,Nick} -> {nick_taken, St};
-    {_,_} -> findClient(T, St, Nick)
+    {_,_} -> addClient(T, St, Nick)
   end.
 
+removeClient(St, Pid) ->
+  NewClients = lists:keydelete(Pid, 1, St#server_st.clients),
+  NewSt = #server_st{ name = St#server_st.name,
+            clients = NewClients},
+  {reply, disconnected, NewSt}.
+
 handle(St, {connect, Pid, Nick}) ->
-  {Response, NewSt} = findClient(St, Pid, Nick),
+  {Response, NewSt} = addClient(St, Pid, Nick),
   io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
   {reply, Response, NewSt};
+
+handle(St, {disconnect, Pid}) ->
+  removeClient(St, Pid);
 
 % DEPRECATED
 handle(St, {isConnected, Pid}) ->
