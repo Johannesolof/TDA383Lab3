@@ -10,6 +10,7 @@ TASKS:
 
         – CLIENT:
                     * Match response from server ¬
+                    * Update connected var in client state ¬
 
     # Disconnect from server
         – CLIENT:   Send request to server with PId
@@ -20,7 +21,8 @@ TASKS:
                     * Return response
 
         – CLIENT:
-                    * Match response from server
+                    * Match response from server 
+                    * Update connected var in client state ¬
 
 
     # Join a channel
@@ -55,7 +57,7 @@ TASKS:
     # Set nickname
         – CLIENT:
                     * Update Nick in client state
-                    * Check if client is connected (implement method)
+                    * Check if client is connected
 
     # Ask for nickname
         – CLIENT:

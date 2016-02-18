@@ -35,6 +35,7 @@ handle(St, {connect, Pid, Nick}) ->
   io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
   {reply, Response, NewSt};
 
+% DEPRECATED
 handle(St, {isConnected, Pid}) ->
   {reply, lists:keymember(Pid, 1, St#server_st.clients), St};
 

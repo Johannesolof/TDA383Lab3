@@ -8,7 +8,7 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
-  #client_st { gui = GUIName , nick = Nick}.
+  #client_st { gui = GUIName , nick = Nick, connected = false }.
 
 %% ---------------------------------------------------------------------------
 
@@ -27,7 +27,8 @@ handle(St, {connect, Server}) ->
     connected ->
       NewSt = #client_st{ gui = St#client_st.gui,
                           nick = St#client_st.nick,
-                          server = ServerAtom },
+                          server = ServerAtom,
+                          connected = true },
       {reply, ok, NewSt} ;
     user_already_connected ->
       {reply, {error, user_already_connected, "Already connected!"}, St} ;
@@ -47,7 +48,8 @@ handle(St, disconnect) ->
   Result = case Response of
     disconnected ->
       NewSt = #client_st{ gui = St#client_st.gui,
-                          nick = St#client_st.nick },
+                          nick = St#client_st.nick,
+                          connected = false },
       {reply, ok, NewSt} ;
     user_not_connected ->
       {reply, {error, user_not_connected, "User not connected!"}, St} ;
@@ -79,8 +81,7 @@ handle(St, whoami) ->
 
 %% Change nick
 handle(St, {nick, Nick}) ->
-  Response = genserver:request(St#client_st.server, {isConnected, self()}),
-  Result = case Response of
+  Result = case St#client_st.connected of
     true ->
       {reply, {error, user_already_connected, "Changing name while connected to a server is prohibited!"}, St};
     false ->
