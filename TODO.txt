@@ -64,3 +64,12 @@ TASKS:
     # Ask for nickname
         – CLIENT:
                     * Return Nick as string
+
+
+
+
+*** NOTES ***
+
+    – Responsibility for checking if client is connected lies on the client itself. Server requests apart from connect assumes client is connected, otherwise illegal request.
+
+    – Result = lists:keyTake(ChanId, 1, St#server_st.channels), <-- DOES NOT WORK, WHY?

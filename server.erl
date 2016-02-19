@@ -7,7 +7,7 @@
 
 % Produce initial state
 initial_state(ServerName) ->
-  #server_st{ name = ServerName, clients = []}.
+  #server_st{ name = ServerName, clients = [], channels = [] }.
 
 %% ---------------------------------------------------------------------------
 
@@ -17,32 +17,66 @@ initial_state(ServerName) ->
 %% current state), performing the needed actions, and returning a tuple
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
-addClient(St, Pid, Nick) when St#server_st.clients == [] ->
+connect(St, Pid, Nick) when St#server_st.clients == [] ->
   NewSt = #server_st{ name = St#server_st.name,
-            clients = [{Pid, Nick} | St#server_st.clients]},
+                      clients = [{Pid, Nick} | St#server_st.clients],
+                      channels = St#server_st.channels },
   {connected, NewSt};
 
-addClient(St, Pid, Nick) ->
+connect(St, Pid, Nick) ->
   [H|T] = St#server_st.clients,
   case H of
     {Pid,_} -> {user_already_connected, St};
     {_,Nick} -> {nick_taken, St};
-    {_,_} -> addClient(T, St, Nick)
+    {_,_} -> connect(T, St, Nick)
   end.
 
-removeClient(St, Pid) ->
+disconnect(St, Pid) ->
   NewClients = lists:keydelete(Pid, 1, St#server_st.clients),
   NewSt = #server_st{ name = St#server_st.name,
-            clients = NewClients},
+                      clients = NewClients, 
+                      channels = St#server_st.channels },
   {reply, disconnected, NewSt}.
 
+join(St, Pid, ChanId, ChanMembers, ChanList) ->
+  NewChanMembers = [Pid | ChanMembers],
+  NewChanList = [{ChanId, NewChanMembers} | ChanList],
+  NewSt = {
+    name = St#server_st.name,
+    clients = St#server_st.clients,
+    channels = NewChanList
+  },
+  {reply, joined, NewSt}.
+
+
+getChannel(St, ChanId) ->
+  io:fwrite("get~n"),
+  Result = lists:keyTake(ChanId, 1, St#server_st.channels),
+  case Result of
+    false ->
+      io:fwrite("false~n"),
+      {{ChanId, []}, St#server_st.channels};
+    {value, Channel, ChanList} ->
+      io:fwrite("value~n"),
+      {Channel, ChanList}
+  end.
+
 handle(St, {connect, Pid, Nick}) ->
-  {Response, NewSt} = addClient(St, Pid, Nick),
+  {Response, NewSt} = connect(St, Pid, Nick),
   io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
   {reply, Response, NewSt};
 
 handle(St, {disconnect, Pid}) ->
-  removeClient(St, Pid);
+  disconnect(St, Pid);
+
+handle(St, {join, Pid, ChanId}) ->
+  {{ChanId, ChanMembers}, ChanList} = getChannel(St, ChanId),
+  case lists:member(Pid, ChanList) of
+    true ->
+      {reply, user_already_joined, St};
+    false ->
+      join(St, Pid, ChanId, ChanMembers, ChanList)
+  end;
 
 % DEPRECATED
 handle(St, {isConnected, Pid}) ->

@@ -72,9 +72,13 @@ handle(St, disconnect) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-
-  % {reply, ok, St} ;
-  {reply, {error, not_implemented, "Not implemented"}, St} ;
+  ChannelAtom = list_to_atom(Channel),
+  case genserver:request(St#client_st.server, {join, self(), ChannelAtom}) of
+    joined ->
+      {reply, ok, St};
+    user_already_joined ->
+      {reply, {user_already_joined, "Already in channel!"}, St}
+  end;
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
