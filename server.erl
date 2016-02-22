@@ -69,6 +69,16 @@ getChannel(St, ChanId) ->
       {Channel, ChanList}
   end.
 
+getNick(St, Pid) ->
+  lists:keyfind(Pid, 1, St#server_st.clients).
+
+send(ChanId, Members, Nick, Msg) ->
+  RequestAtom = {incoming_msg, ChanId, Nick, Msg},
+  lists:foreach(fun(Pid) ->
+                  genserver:request(Pid, RequestAtom)
+                end, Members).
+
+
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = connect(St, Pid, Nick),
   io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
@@ -95,9 +105,20 @@ handle(St, {leave, Pid, ChanId}) ->
       {reply, user_not_joined, St}
   end;
 
-% DEPRECATED
-handle(St, {isConnected, Pid}) ->
-  {reply, lists:keymember(Pid, 1, St#server_st.clients), St};
+handle(St, {send, Pid, ChanId, Msg}) ->
+  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
+  case lists:member(Pid, Members) of
+    true ->
+      case getNick(St, Pid) of
+        false ->
+          {reply, internal_server_error, St};   % this should not be possible
+        {Pid, Nick} ->
+          send(ChanId, lists:delete(Pid, Members), Nick, Msg),
+          {reply, sent, St}
+      end;   
+    false ->
+      {reply, user_not_joined, St}
+  end;
 
 handle(St, Request) ->
   io:fwrite("Server: recived request ~p~n", [Request]),

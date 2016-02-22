@@ -50,7 +50,9 @@ connect(St, Server) ->
         Unknown ->
           {reply, {error, failed, "Unknown response: "++Unknown}, St}
       catch
-        _:_ ->
+        Exception:Reason ->
+          io:fwrite("Exception: ~p~n", [Exception]),
+          io:fwrite("Reason: ~p~n", [Reason]),
           {reply, {error, failed, "Could not connect to server!"}, St}
       end;
     true ->
@@ -98,6 +100,19 @@ leave(St, Channel) ->
       {reply, {error, failed, "Unkown response: "++Unknown}, St}
   end.
 
+send(St, Channel, Msg) ->
+  ChannelAtom = list_to_atom(Channel),
+  case request(St, {send, self(), ChannelAtom, Msg}) of
+    sent ->
+      {reply, ok, St};
+    user_not_joined ->
+      {reply, {error, user_not_joined, "You are not in that channel!"}, St};
+    {request_error, Error, Msg} ->
+      {reply, {error, Error, Msg}, St};
+    Unknown ->
+      {reply, {error, failed, "Unkown response: "++Unknown}, St}
+  end.  
+
 %% Connect to server
 handle(St, {connect, Server}) ->
   connect(St, Server);
@@ -113,11 +128,10 @@ handle(St, {join, Channel}) ->
 %% Leave channel
 handle(St, {leave, Channel}) ->
   leave(St, Channel);
-  % {reply, ok, St} ;
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-  {reply, ok, St} ;
+  send(St, Channel, Msg);
 
 %% Get current nick
 handle(St, whoami) ->
