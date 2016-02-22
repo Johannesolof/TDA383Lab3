@@ -85,6 +85,17 @@ request(St, RequestAtom) ->
       {request_error, user_not_connected, "You are not connected to a server!"}
   end.
 
+leave(St, Channel) ->
+  ChannelAtom = list_to_atom(Channel),
+  case request(St, {leave, self(), ChannelAtom}) of
+    left ->
+      {reply, ok, St};
+    {request_error, Error, Msg} ->
+      {reply, {error, Error, Msg}, St};
+    Unknown ->
+      {reply, {error, failed, "Unkown response: "++Unknown}, St}
+  end.
+
 %% Connect to server
 handle(St, {connect, Server}) ->
   connect(St, Server);
@@ -99,8 +110,8 @@ handle(St, {join, Channel}) ->
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
+  leave(St, Channel);
   % {reply, ok, St} ;
-  {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->

@@ -41,7 +41,6 @@ disconnect(St, Pid) ->
 join(St, Pid, ChanId, Members, Channels) ->
   NewMembers = [Pid | Members],
   NewChannels = [{ChanId, NewMembers} | Channels],
-  io:fwrite("New channel list saved: ~p ", [NewChannels]),
   NewSt = #server_st{
     name = St#server_st.name,
     clients = St#server_st.clients,
@@ -49,6 +48,15 @@ join(St, Pid, ChanId, Members, Channels) ->
   },
   {reply, joined, NewSt}.
 
+leave(St, Pid, ChanId, Members, Channels) ->
+  NewMembers = lists:delete(Pid, Members),
+  NewChannels = [{ChanId, NewMembers} | Channels],
+  NewSt = #server_st{
+    name = St#server_st.name,
+    clients = St#server_st.clients,
+    channels = NewChannels
+  },
+  {reply, left, NewSt}.
 
 getChannel(St, ChanId) ->
   io:fwrite("get~n"),
@@ -71,15 +79,20 @@ handle(St, {disconnect, Pid}) ->
 
 handle(St, {join, Pid, ChanId}) ->
   {{ChanId, Members}, Channels} = getChannel(St, ChanId),
-  io:fwrite("Pid: ~p ~n", [Pid]),
-  io:fwrite("Members list: ~p ~n", [Members]),
   case lists:member(Pid, Members) of
     true ->
-      io:fwrite("already joined~n"),
       {reply, user_already_joined, St};
     false ->
-      io:fwrite("successfully joined~n"),
       join(St, Pid, ChanId, Members, Channels)
+  end;
+
+handle(St, {leave, Pid, ChanId}) ->
+  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
+  case lists:member(Pid, Members) of
+    true ->
+      leave(St, Pid, ChanId, Members, Channels);
+    false ->
+      {reply, user_not_joined, St}
   end;
 
 % DEPRECATED
