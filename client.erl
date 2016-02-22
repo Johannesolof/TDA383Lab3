@@ -90,6 +90,8 @@ leave(St, Channel) ->
   case request(St, {leave, self(), ChannelAtom}) of
     left ->
       {reply, ok, St};
+    user_not_joined ->
+      {reply, {error, user_not_joined, "You are not in that channel!"}, St};
     {request_error, Error, Msg} ->
       {reply, {error, Error, Msg}, St};
     Unknown ->
@@ -115,12 +117,11 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-  % {reply, ok, St} ;
-  {reply, {error, not_implemented, "Not implemented"}, St} ;
+  {reply, ok, St} ;
 
 %% Get current nick
 handle(St, whoami) ->
-  {reply, St#client_st.nick, St} ;
+  {reply, St#client_st.nick, St};
 
 %% Change nick
 handle(St, {nick, Nick}) ->
