@@ -77,7 +77,7 @@ handle(St, {join, Channel}) ->
     joined ->
       {reply, ok, St};
     user_already_joined ->
-      {reply, {user_already_joined, "Already in channel!"}, St}
+      {reply, {error, user_already_joined, "Already in channel!"}, St}
   end;
 
 %% Leave channel

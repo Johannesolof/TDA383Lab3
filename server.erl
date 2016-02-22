@@ -38,21 +38,21 @@ disconnect(St, Pid) ->
                       channels = St#server_st.channels },
   {reply, disconnected, NewSt}.
 
-join(St, Pid, ChanId, ChanMembers, ChanList) ->
-  NewChanMembers = [Pid | ChanMembers],
-  NewChanList = [{ChanId, NewChanMembers} | ChanList],
-  NewSt = {
+join(St, Pid, ChanId, Members, Channels) ->
+  NewMembers = [Pid | Members],
+  NewChannels = [{ChanId, NewMembers} | Channels],
+  io:fwrite("New channel list saved: ~p ", [NewChannels]),
+  NewSt = #server_st{
     name = St#server_st.name,
     clients = St#server_st.clients,
-    channels = NewChanList
+    channels = NewChannels
   },
   {reply, joined, NewSt}.
 
 
 getChannel(St, ChanId) ->
   io:fwrite("get~n"),
-  Result = lists:keyTake(ChanId, 1, St#server_st.channels),
-  case Result of
+  case lists:keytake(ChanId, 1, St#server_st.channels) of
     false ->
       io:fwrite("false~n"),
       {{ChanId, []}, St#server_st.channels};
@@ -70,12 +70,16 @@ handle(St, {disconnect, Pid}) ->
   disconnect(St, Pid);
 
 handle(St, {join, Pid, ChanId}) ->
-  {{ChanId, ChanMembers}, ChanList} = getChannel(St, ChanId),
-  case lists:member(Pid, ChanList) of
+  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
+  io:fwrite("Pid: ~p ~n", [Pid]),
+  io:fwrite("Members list: ~p ~n", [Members]),
+  case lists:member(Pid, Members) of
     true ->
+      io:fwrite("already joined~n"),
       {reply, user_already_joined, St};
     false ->
-      join(St, Pid, ChanId, ChanMembers, ChanList)
+      io:fwrite("successfully joined~n"),
+      join(St, Pid, ChanId, Members, Channels)
   end;
 
 % DEPRECATED
