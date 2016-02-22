@@ -20,65 +20,82 @@ initial_state(Nick, GUIName) ->
 %% requesting process and NewState is the new state of the client.
 
 disconnect(St) ->
-  case genserver:request(St#client_st.server, {disconnect, self()}) of
+  case request(St, {disconnect, self()}) of
       disconnected ->
         NewSt = #client_st{ gui = St#client_st.gui,
                             nick = St#client_st.nick,
                             connected = false },
         {reply, ok, NewSt} ;
-      user_not_connected ->
-        {reply, {error, user_not_connected, "User not connected!"}, St} ;
+      {request_error, Error, Msg} ->
+        {reply, {error, Error, Msg}, St};
       Unknown ->
         {reply, {error, failed, "Unkown response: "++Unknown}, St}
   end.
 
 connect(St, Server) ->
-  ServerAtom = list_to_atom(Server),
-  try genserver:request(ServerAtom, {connect, self(), St#client_st.nick}) of
-      connected ->
-        NewSt = #client_st{ gui = St#client_st.gui,
-                            nick = St#client_st.nick,
-                            server = ServerAtom,
-                            connected = true },
-        {reply, ok, NewSt} ;
-      user_already_connected ->
-        {reply, {error, user_already_connected, "Already connected!"}, St} ;
-      nick_taken ->
-        {reply, {error, nick_taken, "Nick already taken!"}, St} ;
-      Unknown ->
-        {reply, {error, failed, "Unknown response: "++Unknown}, St}
-  catch
-    Exception:Reason ->
-      {reply, {error, failed, "Could not connect to server!"}, St}
+  case St#client_st.connected of
+    false ->
+      ServerAtom = list_to_atom(Server),
+      try genserver:request(ServerAtom, {connect, self(), St#client_st.nick}) of
+        connected ->
+          NewSt = #client_st{ gui = St#client_st.gui,
+                              nick = St#client_st.nick,
+                              server = ServerAtom,
+                              connected = true },
+          {reply, ok, NewSt} ;
+        user_already_connected ->
+          {reply, {error, user_already_connected, "Already connected!"}, St} ;
+        nick_taken ->
+          {reply, {error, nick_taken, "Nick already taken!"}, St} ;
+        Unknown ->
+          {reply, {error, failed, "Unknown response: "++Unknown}, St}
+      catch
+        _:_ ->
+          {reply, {error, failed, "Could not connect to server!"}, St}
+      end;
+    true ->
+      {reply, {error, user_already_connected, "Already connected to...?"}, St} %TODO: Print server name
+  end.
+
+join(St, Channel) ->
+  ChannelAtom = list_to_atom(Channel),
+  case request(St, {join, self(), ChannelAtom}) of
+    joined ->
+      {reply, ok, St};
+    user_already_joined ->
+      {reply, {error, user_already_joined, "Already in channel!"}, St};
+    {request_error, Error, Msg} ->
+        {reply, {error, Error, Msg}, St};
+    Unknown ->
+        {reply, {error, failed, "Unkown response: "++Unknown}, St}
+  end.
+
+%% request is used for all requests to server once connected
+request(St, RequestAtom) ->
+  case St#client_st.connected of
+    true ->
+      try genserver:request(St#client_st.server, RequestAtom) of
+        Response ->
+          Response
+      catch
+        _:_ ->
+          {request_error, failed, "Exception occured while making request to server!"}
+      end;
+    false ->
+      {request_error, user_not_connected, "You are not connected to a server!"}
   end.
 
 %% Connect to server
 handle(St, {connect, Server}) ->
-  case St#client_st.connected of
-    true ->
-      {reply, {error, user_already_connected, "Already connected to...?"}, St} ; %TODO: Print server name
-    false ->
-      connect(St, Server)
-  end;
+  connect(St, Server);
 
 %% Disconnect from server
 handle(St, disconnect) ->
-  case St#client_st.connected of
-    true ->
-      disconnect(St);
-    false ->
-      {reply, {error, failed, "Not connected!"}, St}
-  end;
+  disconnect(St);
 
 % Join channel
 handle(St, {join, Channel}) ->
-  ChannelAtom = list_to_atom(Channel),
-  case genserver:request(St#client_st.server, {join, self(), ChannelAtom}) of
-    joined ->
-      {reply, ok, St};
-    user_already_joined ->
-      {reply, {error, user_already_joined, "Already in channel!"}, St}
-  end;
+  join(St, Channel);
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
