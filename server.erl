@@ -22,16 +22,21 @@ connect(St, Pid, Nick) ->
   Conflict = checkConflict(St#server_st.clients, Pid, Nick),
   case Conflict of
     {false, _} ->
-      NewSt = updateState(St, clients, {Pid, Nick}),
+      NewSt = updateState(St, clients, [{Pid, Nick} | St#server_st.clients]),
       {connected, NewSt};
     {true, Reason} ->
       {Reason, St}
   end.
 
-updateState(St, clients, Client) ->
+updateState(St, clients, Clients) ->
   #server_st{ name = St#server_st.name,
-              clients = [Client | St#server_st.clients],
-              channels = St#server_st.channels }.
+              clients = Clients,
+              channels = St#server_st.channels };
+
+updateState(St, channels, Channels) ->
+  #server_st{ name = St#server_st.name,
+              clients = St#server_st.clients,
+              channels = Channels }.
 
 checkConflict(Clients, _, _) when (Clients =:= []) ->
   {false, ok};
@@ -46,29 +51,19 @@ checkConflict(Clients, Pid, Nick) ->
 
 disconnect(St, Pid) ->
   NewClients = lists:keydelete(Pid, 1, St#server_st.clients),
-  NewSt = #server_st{ name = St#server_st.name,
-                      clients = NewClients, 
-                      channels = St#server_st.channels },
+  NewSt = updateState(St, clients, NewClients),
   {reply, disconnected, NewSt}.
 
 join(St, Pid, ChanId, Members, Channels) ->
   NewMembers = [Pid | Members],
   NewChannels = [{ChanId, NewMembers} | Channels],
-  NewSt = #server_st{
-    name = St#server_st.name,
-    clients = St#server_st.clients,
-    channels = NewChannels
-  },
+  NewSt = updateState(St, channels, NewChannels),
   {reply, joined, NewSt}.
 
 leave(St, Pid, ChanId, Members, Channels) ->
   NewMembers = lists:delete(Pid, Members),
   NewChannels = [{ChanId, NewMembers} | Channels],
-  NewSt = #server_st{
-    name = St#server_st.name,
-    clients = St#server_st.clients,
-    channels = NewChannels
-  },
+  NewSt = updateState(St, channels, NewChannels),
   {reply, left, NewSt}.
 
 getChannel(St, ChanId) ->
