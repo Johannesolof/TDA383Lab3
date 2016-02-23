@@ -17,18 +17,31 @@ initial_state(ServerName) ->
 %% current state), performing the needed actions, and returning a tuple
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
-connect(St, Pid, Nick) when St#server_st.clients == [] ->
-  NewSt = #server_st{ name = St#server_st.name,
-                      clients = [{Pid, Nick} | St#server_st.clients],
-                      channels = St#server_st.channels },
-  {connected, NewSt};
 
 connect(St, Pid, Nick) ->
-  [H|T] = St#server_st.clients,
+  Conflict = checkConflict(St#server_st.clients, Pid, Nick),
+  case Conflict of
+    {false, _} ->
+      NewSt = updateState(St, clients, {Pid, Nick}),
+      {connected, NewSt};
+    {true, Reason} ->
+      {Reason, St}
+  end.
+
+updateState(St, clients, Client) ->
+  #server_st{ name = St#server_st.name,
+              clients = [Client | St#server_st.clients],
+              channels = St#server_st.channels }.
+
+checkConflict(Clients, _, _) when (Clients =:= []) ->
+  {false, ok};
+
+checkConflict(Clients, Pid, Nick) ->
+  [H|T] = Clients,
   case H of
-    {Pid,_} -> {user_already_connected, St};
-    {_,Nick} -> {nick_taken, St};
-    {_,_} -> connect(T, St, Nick)
+    {Pid,_} -> {true, user_already_connected};
+    {_,Nick} -> {true, nick_taken};
+    {_,_} -> checkConflict(T, Pid, Nick)
   end.
 
 disconnect(St, Pid) ->
