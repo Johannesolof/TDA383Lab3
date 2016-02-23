@@ -19,12 +19,23 @@ initial_state(Nick, GUIName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the
 %% requesting process and NewState is the new state of the client.
 
+updateState(St, {connect, Server}) ->
+  #client_st{ gui = St#client_st.gui,
+              nick = St#client_st.nick,
+              server = Server,
+              connected = true };
+
+updateState(St, disconnect) ->
+  #client_st{ gui = St#client_st.gui,
+              nick = St#client_st.nick,
+              server = ok,
+              connected = false }.
+
+
 disconnect(St) ->
   case request(St, {disconnect, self()}) of
       disconnected ->
-        NewSt = #client_st{ gui = St#client_st.gui,
-                            nick = St#client_st.nick,
-                            connected = false },
+        NewSt = updateState(St, disconnect),
         {reply, ok, NewSt} ;
       {request_error, Error, Msg} ->
         {reply, {error, Error, Msg}, St};
@@ -38,10 +49,7 @@ connect(St, Server) ->
       ServerAtom = list_to_atom(Server),
       try genserver:request(ServerAtom, {connect, self(), St#client_st.nick}) of
         connected ->
-          NewSt = #client_st{ gui = St#client_st.gui,
-                              nick = St#client_st.nick,
-                              server = ServerAtom,
-                              connected = true },
+          NewSt = updateState(St, {connect, ServerAtom}),
           {reply, ok, NewSt} ;
         user_already_connected ->
           {reply, {error, user_already_connected, "Already connected!"}, St} ;
