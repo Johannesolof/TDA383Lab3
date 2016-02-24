@@ -8,6 +8,7 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
+  io:fwrite("GUIName: ~p ~n", [GUIName]),
   #client_st { gui = GUIName , nick = Nick, connected = false }.
 
 %% ---------------------------------------------------------------------------
@@ -68,8 +69,7 @@ connect(St, Server) ->
   end.
 
 join(St, Channel) ->
-  ChannelAtom = list_to_atom(Channel),
-  case request(St, {join, self(), ChannelAtom}) of
+  case request(St, {join, self(), Channel}) of
     joined ->
       {reply, ok, St};
     user_already_joined ->
@@ -88,7 +88,9 @@ request(St, RequestAtom) ->
         Response ->
           Response
       catch
-        _:_ ->
+        Exception:Reason ->
+          io:fwrite("Exception: ~p ~n", [Exception]),
+          io:fwrite("Reason: ~p ~n", [Reason]),
           {request_error, failed, "Exception occured while making request to server!"}
       end;
     false ->
@@ -109,8 +111,7 @@ leave(St, Channel) ->
   end.
 
 send(St, Channel, Msg) ->
-  ChannelAtom = list_to_atom(Channel),
-  case request(St, {send, self(), ChannelAtom, Msg}) of
+  case request(St, {send, self(), Channel, Msg}) of
     sent ->
       {reply, ok, St};
     user_not_joined ->
@@ -158,5 +159,6 @@ handle(St, {nick, Nick}) ->
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
+  io:fwrite("Received msg: ~p ~n", [Msg]),
   gen_server:call(list_to_atom(GUIName), {msg_to_GUI, Channel, Name++"> "++Msg}),
   {reply, ok, St}.

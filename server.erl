@@ -82,8 +82,9 @@ getNick(St, Pid) ->
 
 send(ChanId, Members, Nick, Msg) ->
   RequestAtom = {incoming_msg, ChanId, Nick, Msg},
-  lists:foreach(fun(Pid) ->
-                  genserver:request(Pid, RequestAtom)
+  lists:foreach(fun(Recipient) ->
+                  io:fwrite("Sending msg to: ~p ~n", [Recipient]),
+                  genserver:request(Recipient, RequestAtom)
                 end, Members).
 
 
@@ -114,7 +115,7 @@ handle(St, {leave, Pid, ChanId}) ->
   end;
 
 handle(St, {send, Pid, ChanId, Msg}) ->
-  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
+  {{ChanId, Members}, _} = getChannel(St, ChanId),
   case lists:member(Pid, Members) of
     true ->
       case getNick(St, Pid) of
