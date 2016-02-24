@@ -67,14 +67,26 @@ leave(St, Pid, ChanId, Members, Channels) ->
   {reply, left, NewSt}.
 
 getChannel(St, ChanId) ->
-  io:fwrite("get~n"),
   case lists:keytake(ChanId, 1, St#server_st.channels) of
     false ->
-      io:fwrite("false~n"),
       {{ChanId, []}, St#server_st.channels};
     {value, Channel, ChanList} ->
-      io:fwrite("value~n"),
       {Channel, ChanList}
+  end.
+
+memberOfAnyChannel(_, []) -> false;
+
+memberOfAnyChannel(Pid, Channels) ->
+  [{_, Members}|T] = Channels,
+  Result = lists:any(fun(CurrentPid) ->
+                  Pid =:= CurrentPid
+            end, Members),
+
+  case Result of
+    true ->
+      true;
+    false ->
+      memberOfAnyChannel(Pid, T)
   end.
 
 getNick(St, Pid) ->
@@ -83,18 +95,21 @@ getNick(St, Pid) ->
 send(ChanId, Members, Nick, Msg) ->
   RequestAtom = {incoming_msg, ChanId, Nick, Msg},
   lists:foreach(fun(Recipient) ->
-                  io:fwrite("Sending msg to: ~p ~n", [Recipient]),
                   genserver:request(Recipient, RequestAtom)
                 end, Members).
 
 
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = connect(St, Pid, Nick),
-  io:fwrite("Server: ~p is connected~n", [Pid]), %TODO: needs to represent the state better
   {reply, Response, NewSt};
 
 handle(St, {disconnect, Pid}) ->
-  disconnect(St, Pid);
+  case memberOfAnyChannel(Pid, St#server_st.channels) of
+    true ->
+      {reply, leave_channels_first, St};
+    false ->
+      disconnect(St, Pid)
+  end;
 
 handle(St, {join, Pid, ChanId}) ->
   {{ChanId, Members}, Channels} = getChannel(St, ChanId),
@@ -130,9 +145,7 @@ handle(St, {send, Pid, ChanId, Msg}) ->
   end;
 
 handle(St, Request) ->
-  io:fwrite("Server: recived request ~p~n", [Request]),
-  Response = "unkown",
-  io:fwrite("Server: unkown request~n"),
+  Response = "Unknown",
   {reply, Response, St}.
 
 %% -----------Utility functions------------

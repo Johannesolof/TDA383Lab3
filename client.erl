@@ -8,7 +8,6 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
-  io:fwrite("GUIName: ~p ~n", [GUIName]),
   #client_st { gui = GUIName , nick = Nick, connected = false }.
 
 %% ---------------------------------------------------------------------------
@@ -38,6 +37,8 @@ disconnect(St) ->
       disconnected ->
         NewSt = updateState(St, disconnect),
         {reply, ok, NewSt} ;
+      leave_channels_first ->
+        {reply, {error, leave_channels_first, "Leave all channels before disconnecting!"}, St} ;
       {request_error, Error, Msg} ->
         {reply, {error, Error, Msg}, St};
       Unknown ->
@@ -60,9 +61,7 @@ connect(St, Server) ->
           {reply, {error, failed, "Unknown response: "++Unknown}, St}
       catch
         Exception:Reason ->
-          io:fwrite("Exception: ~p~n", [Exception]),
-          io:fwrite("Reason: ~p~n", [Reason]),
-          {reply, {error, failed, "Could not connect to server!"}, St}
+          {reply, {error, server_not_reached, "Could not connect to server!"}, St}
       end;
     true ->
       {reply, {error, user_already_connected, "Already connected to...?"}, St} %TODO: Print server name
@@ -89,17 +88,14 @@ request(St, RequestAtom) ->
           Response
       catch
         Exception:Reason ->
-          io:fwrite("Exception: ~p ~n", [Exception]),
-          io:fwrite("Reason: ~p ~n", [Reason]),
-          {request_error, failed, "Exception occured while making request to server!"}
+          {request_error, server_not_reached, "Exception occured while making request to server!"}
       end;
     false ->
       {request_error, user_not_connected, "You are not connected to a server!"}
   end.
 
 leave(St, Channel) ->
-  ChannelAtom = list_to_atom(Channel),
-  case request(St, {leave, self(), ChannelAtom}) of
+  case request(St, {leave, self(), Channel}) of
     left ->
       {reply, ok, St};
     user_not_joined ->
@@ -159,6 +155,5 @@ handle(St, {nick, Nick}) ->
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
-  io:fwrite("Received msg: ~p ~n", [Msg]),
   gen_server:call(list_to_atom(GUIName), {msg_to_GUI, Channel, Name++"> "++Msg}),
   {reply, ok, St}.
