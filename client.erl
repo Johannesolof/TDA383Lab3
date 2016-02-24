@@ -19,19 +19,21 @@ initial_state(Nick, GUIName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the
 %% requesting process and NewState is the new state of the client.
 
+% updates state with new value on connected and server
 updateState(St, {connect, Server}) ->
   #client_st{ gui = St#client_st.gui,
               nick = St#client_st.nick,
               server = Server,
               connected = true };
 
+% updates state with new value on connected and server
 updateState(St, disconnect) ->
   #client_st{ gui = St#client_st.gui,
               nick = St#client_st.nick,
-              server = ok,
+              server = undef,
               connected = false }.
 
-
+% sends a request to server asking to disconnect
 disconnect(St) ->
   case request(St, {disconnect, self()}) of
       disconnected ->
@@ -45,6 +47,7 @@ disconnect(St) ->
         {reply, {error, failed, "Unkown response: "++Unknown}, St}
   end.
 
+% sends a request to server asking to connect
 connect(St, Server) ->
   case St#client_st.connected of
     false ->
@@ -60,11 +63,11 @@ connect(St, Server) ->
         Unknown ->
           {reply, {error, failed, "Unknown response: "++Unknown}, St}
       catch
-        Exception:Reason ->
+        _Exception:_Reason ->
           {reply, {error, server_not_reached, "Could not connect to server!"}, St}
       end;
     true ->
-      {reply, {error, user_already_connected, "Already connected to...?"}, St} %TODO: Print server name
+      {reply, {error, user_already_connected, "Already connected to "++Server}, St}
   end.
 
 join(St, Channel) ->
@@ -87,7 +90,7 @@ request(St, RequestAtom) ->
         Response ->
           Response
       catch
-        Exception:Reason ->
+        _Exception:_Reason ->
           {request_error, server_not_reached, "Exception occured while making request to server!"}
       end;
     false ->

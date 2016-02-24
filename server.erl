@@ -38,7 +38,8 @@ updateState(St, channels, Channels) ->
               clients = St#server_st.clients,
               channels = Channels }.
 
-checkConflict(Clients, _, _) when (Clients =:= []) ->
+% checks if a client is already connected or if the desired nick is occupied
+checkConflict([], _, _) ->
   {false, ok};
 
 checkConflict(Clients, Pid, Nick) ->
@@ -66,6 +67,9 @@ leave(St, Pid, ChanId, Members, Channels) ->
   NewSt = updateState(St, channels, NewChannels),
   {reply, left, NewSt}.
 
+% returns channel tuple (channel id and list of members) and
+% the list of all channels except channel with ChanId
+% if the channels does not exist it is created
 getChannel(St, ChanId) ->
   case lists:keytake(ChanId, 1, St#server_st.channels) of
     false ->
@@ -74,6 +78,7 @@ getChannel(St, ChanId) ->
       {Channel, ChanList}
   end.
 
+% checks if 
 memberOfAnyChannel(_, []) -> false;
 
 memberOfAnyChannel(Pid, Channels) ->
@@ -129,8 +134,11 @@ handle(St, {leave, Pid, ChanId}) ->
       {reply, user_not_joined, St}
   end;
 
+
 handle(St, {send, Pid, ChanId, Msg}) ->
-  {{ChanId, Members}, _} = getChannel(St, ChanId),
+  {{ChanId, Members}, _Channels} = getChannel(St, ChanId),
+
+  % check if user is a member of channel
   case lists:member(Pid, Members) of
     true ->
       case getNick(St, Pid) of
@@ -144,11 +152,6 @@ handle(St, {send, Pid, ChanId, Msg}) ->
       {reply, user_not_joined, St}
   end;
 
-handle(St, Request) ->
+handle(St, _Request) ->
   Response = "Unknown",
   {reply, Response, St}.
-
-%% -----------Utility functions------------
-
-%consoleMsg(Msg, Arg) ->
-%  io:fwrite("Server: " ++ Msg, Arg).
