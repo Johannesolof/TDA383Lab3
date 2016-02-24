@@ -137,7 +137,7 @@ handle(St, {send, Pid, ChanId, Msg}) ->
         false ->
           {reply, internal_server_error, St};   % this should not be possible
         {Pid, Nick} ->
-          send(ChanId, lists:delete(Pid, Members), Nick, Msg),
+          spawn(fun () -> send(ChanId, lists:delete(Pid, Members), Nick, Msg) end),
           {reply, sent, St}
       end;   
     false ->
