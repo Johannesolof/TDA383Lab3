@@ -69,7 +69,7 @@ leave(St, Pid, ChanId, Members, Channels) ->
 
 % returns channel tuple (channel id and list of members) and
 % the list of all channels except channel with ChanId
-% if the channels does not exist it is created
+% if the channel does not exist it is created
 getChannel(St, ChanId) ->
   case lists:keytake(ChanId, 1, St#server_st.channels) of
     false ->
@@ -78,7 +78,8 @@ getChannel(St, ChanId) ->
       {Channel, ChanList}
   end.
 
-% checks if 
+% checks if client with Pid is a member of any channel
+% used to check if disconnect is allowed
 memberOfAnyChannel(_, []) -> false;
 
 memberOfAnyChannel(Pid, Channels) ->
@@ -102,7 +103,6 @@ send(ChanId, Members, Nick, Msg) ->
   lists:foreach(fun(Recipient) ->
                   genserver:request(Recipient, RequestAtom)
                 end, Members).
-
 
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = connect(St, Pid, Nick),
@@ -137,8 +137,6 @@ handle(St, {leave, Pid, ChanId}) ->
 
 handle(St, {send, Pid, ChanId, Msg}) ->
   {{ChanId, Members}, _Channels} = getChannel(St, ChanId),
-
-  % check if user is a member of channel
   case lists:member(Pid, Members) of
     true ->
       case getNick(St, Pid) of
