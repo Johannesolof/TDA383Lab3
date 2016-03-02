@@ -69,34 +69,12 @@ getChannelPid(St, ChanId) ->
       {St, ChanPid}
   end.
 
-% checks if client with Pid is a member of any channel
-% used to check if disconnect is allowed
-memberOfAnyChannel(_, []) -> false;
-
-memberOfAnyChannel(Pid, Channels) ->
-  [{_, Members}|T] = Channels,
-  Result = lists:any(fun(CurrentPid) ->
-                  Pid =:= CurrentPid
-            end, Members),
-
-  case Result of
-    true ->
-      true;
-    false ->
-      memberOfAnyChannel(Pid, T)
-  end.
-
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = connect(St, Pid, Nick),
   {reply, Response, NewSt};
 
 handle(St, {disconnect, Pid}) ->
-  case memberOfAnyChannel(Pid, St#server_st.channels) of
-    true ->
-      {reply, leave_channels_first, St};
-    false ->
-      disconnect(St, Pid)
-  end;
+  disconnect(St, Pid);
 
 handle(St, {join, ChanId}) ->
   {NewSt, ChanPid} = getChannelPid(St, ChanId),

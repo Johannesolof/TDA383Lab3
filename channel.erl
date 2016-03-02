@@ -26,7 +26,7 @@ handle(St, {join, Pid}) ->
 handle(St, {leave, Pid}) ->
     case lists:member(Pid, St#channel_st.clients) of
        false -> {reply, user_not_joined, St};
-       true -> {replay, left, updateState(St, clients, lists:delete(Pid, St#channel_st.clients))}
+       true -> {reply, left, updateState(St, clients, lists:delete(Pid, St#channel_st.clients))}
     end;
 
 handle(St, {send, Pid, Nick, Msg}) ->
