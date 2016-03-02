@@ -8,7 +8,7 @@
 
 %% Produce initial state
 initial_state(Nick, GUIName) ->
-  #client_st { gui = GUIName , nick = Nick, connected = false }.
+  #client_st { gui = GUIName , nick = Nick, connected = false, channels = [] }.
 
 %% ---------------------------------------------------------------------------
 
@@ -23,16 +23,26 @@ updateState(St, {connect, Server}) ->
   #client_st{ gui = St#client_st.gui,
               nick = St#client_st.nick,
               server = Server,
-              connected = true };
+              connected = true,
+              channels = St#client_st.channels };
 
 updateState(St, disconnect) ->
   #client_st{ gui = St#client_st.gui,
               nick = St#client_st.nick,
               server = undef,
-              connected = false }.
+              connected = false,
+              channels = St#client_st.channels };
+
+updateState(St, {channels, Channels}) ->
+  #client_st{ gui = St#client_st.gui,
+              nick = St#client_st.nick,
+              server = St#client_st.server,
+              connected = St#client_st.connected,
+              channels = Channels }.
+
 
 disconnect(St) ->
-  case request(St, {disconnect, self()}) of
+  case request(St, St#client_st.server, {disconnect, self()}) of
       disconnected ->
         NewSt = updateState(St, disconnect),
         {reply, ok, NewSt} ;
@@ -67,11 +77,23 @@ connect(St, Server) ->
   end.
 
 join(St, Channel) ->
-  case request(St, {join, self(), Channel}) of
-    joined ->
-      {reply, ok, St};
-    user_already_joined ->
-      {reply, {error, user_already_joined, "Already in channel!"}, St};
+  % ask server for channel pid
+  case request(St, St#client_st.server, {join, Channel}) of
+    {channel_pid, ChanPid} ->
+      % ask channel process for permission to join
+      case request(St, ChanPid, {join, self()}) of
+        joined ->
+          ChannelAtom = list_to_atom(Channel),
+          register(ChannelAtom, ChanPid),
+          NewSt = updateState(St, {channels, [ChannelAtom | St#client_st.channels]}),
+          {reply, ok, NewSt};
+        user_already_joined ->
+          {reply, {error, user_already_joined, "Already in channel!"}, St};
+        {request_error, Error, Msg} ->
+          {reply, {error, Error, Msg}, St};
+        Unknown ->
+          {reply, {error, failed, "Unkown response: "++Unknown}, St}
+      end;
     {request_error, Error, Msg} ->
         {reply, {error, Error, Msg}, St};
     Unknown ->
@@ -81,10 +103,10 @@ join(St, Channel) ->
 % request is used for all requests to server once connected
 % before making the request the method checks if the client is connected
 % if an exception occurs during the genserver request this is also catched by the method
-request(St, RequestAtom) ->
+request(St, Server, RequestAtom) ->
   case St#client_st.connected of
     true ->
-      try genserver:request(St#client_st.server, RequestAtom) of
+      try genserver:request(Server, RequestAtom) of
         Response ->
           Response
       catch
@@ -96,9 +118,11 @@ request(St, RequestAtom) ->
   end.
 
 leave(St, Channel) ->
-  case request(St, {leave, self(), Channel}) of
+  ChannelAtom = list_to_atom(Channel),
+  case request(St, ChannelAtom, {leave, self()}) of
     left ->
-      {reply, ok, St};
+      NewSt = updateState(St, {channels, lists:delete(ChannelAtom, St#client_st.channels)}),
+      {reply, ok, NewSt};
     user_not_joined ->
       {reply, {error, user_not_joined, "You are not in that channel!"}, St};
     {request_error, Error, Msg} ->
@@ -108,7 +132,8 @@ leave(St, Channel) ->
   end.
 
 send(St, Channel, Msg) ->
-  case request(St, {send, self(), Channel, Msg}) of
+  ChannelAtom = list_to_atom(Channel),
+  case request(St, ChannelAtom, {send, self(), St#client_st.nick, Msg}) of
     sent ->
       {reply, ok, St};
     user_not_joined ->
@@ -125,7 +150,12 @@ handle(St, {connect, Server}) ->
 
 %% Disconnect from server
 handle(St, disconnect) ->
-  disconnect(St);
+  case (St#client_st.channels =:= []) of 
+    true ->
+      disconnect(St);
+    false ->
+      {reply, {error, leave_channels_first, "Leave all channels before disconnecting!"}, St}
+  end;
 
 % Join channel
 handle(St, {join, Channel}) ->
