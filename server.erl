@@ -55,27 +55,18 @@ disconnect(St, Pid) ->
   NewSt = updateState(St, clients, NewClients),
   {reply, disconnected, NewSt}.
 
-join(St, Pid, ChanId, Members, Channels) ->
-  NewMembers = [Pid | Members],
-  NewChannels = [{ChanId, NewMembers} | Channels],
-  NewSt = updateState(St, channels, NewChannels),
-  {reply, joined, NewSt}.
-
-leave(St, Pid, ChanId, Members, Channels) ->
-  NewMembers = lists:delete(Pid, Members),
-  NewChannels = [{ChanId, NewMembers} | Channels],
-  NewSt = updateState(St, channels, NewChannels),
-  {reply, left, NewSt}.
 
 % returns channel tuple (channel id and list of members) and
 % the list of all channels except channel with ChanId
 % if the channel does not exist it is created
-getChannel(St, ChanId) ->
-  case lists:keytake(ChanId, 1, St#server_st.channels) of
+getChannelPid(St, ChanId) ->
+  case lists:keyfind(ChanId, 1, St#server_st.channels) of
     false ->
-      {{ChanId, []}, St#server_st.channels};
-    {value, Channel, ChanList} ->
-      {Channel, ChanList}
+      ChanPid = genserver:start(list_to_atom(ChanId), channel:initial_state(), fun channel:handle/2),
+      NewSt = updateState(St, channels, [{ChanId, ChanPid} | St#server_st.channels]),
+      {NewSt, ChanPid};
+    {_ChanId, ChanPid} ->
+      {St, ChanPid}
   end.
 
 % checks if client with Pid is a member of any channel
@@ -95,15 +86,6 @@ memberOfAnyChannel(Pid, Channels) ->
       memberOfAnyChannel(Pid, T)
   end.
 
-getNick(St, Pid) ->
-  lists:keyfind(Pid, 1, St#server_st.clients).
-
-send(ChanId, Members, Nick, Msg) ->
-  RequestAtom = {incoming_msg, ChanId, Nick, Msg},
-  lists:foreach(fun(Recipient) ->
-                  genserver:request(Recipient, RequestAtom)
-                end, Members).
-
 handle(St, {connect, Pid, Nick}) ->
   {Response, NewSt} = connect(St, Pid, Nick),
   {reply, Response, NewSt};
@@ -116,39 +98,9 @@ handle(St, {disconnect, Pid}) ->
       disconnect(St, Pid)
   end;
 
-handle(St, {join, Pid, ChanId}) ->
-  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
-  case lists:member(Pid, Members) of
-    true ->
-      {reply, user_already_joined, St};
-    false ->
-      join(St, Pid, ChanId, Members, Channels)
-  end;
-
-handle(St, {leave, Pid, ChanId}) ->
-  {{ChanId, Members}, Channels} = getChannel(St, ChanId),
-  case lists:member(Pid, Members) of
-    true ->
-      leave(St, Pid, ChanId, Members, Channels);
-    false ->
-      {reply, user_not_joined, St}
-  end;
-
-
-handle(St, {send, Pid, ChanId, Msg}) ->
-  {{ChanId, Members}, _Channels} = getChannel(St, ChanId),
-  case lists:member(Pid, Members) of
-    true ->
-      case getNick(St, Pid) of
-        false ->
-          {reply, internal_server_error, St};   % this should not be possible
-        {Pid, Nick} ->
-          spawn(fun () -> send(ChanId, lists:delete(Pid, Members), Nick, Msg) end),
-          {reply, sent, St}
-      end;   
-    false ->
-      {reply, user_not_joined, St}
-  end;
+handle(St, {join, ChanId}) ->
+  {NewSt, ChanPid} = getChannelPid(St, ChanId),
+  {reply, {channel_pid, ChanPid}, NewSt}; 
 
 handle(St, _Request) ->
   Response = "Unknown",
