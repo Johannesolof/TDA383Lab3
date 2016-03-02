@@ -62,7 +62,7 @@ disconnect(St, Pid) ->
 getChannelPid(St, ChanId) ->
   case lists:keyfind(ChanId, 1, St#server_st.channels) of
     false ->
-      ChanPid = genserver:start(list_to_atom(ChanId), channel:initial_state(), fun channel:handle/2),
+      ChanPid = genserver:start(list_to_atom(ChanId), channel:initial_state(ChanId), fun channel:handle/2),
       NewSt = updateState(St, channels, [{ChanId, ChanPid} | St#server_st.channels]),
       {NewSt, ChanPid};
     {_ChanId, ChanPid} ->

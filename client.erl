@@ -84,7 +84,6 @@ join(St, Channel) ->
       case request(St, ChanPid, {join, self()}) of
         joined ->
           ChannelAtom = list_to_atom(Channel),
-          register(ChannelAtom, ChanPid),
           NewSt = updateState(St, {channels, [ChannelAtom | St#client_st.channels]}),
           {reply, ok, NewSt};
         user_already_joined ->
