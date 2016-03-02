@@ -26,15 +26,15 @@ handle(St, {join, Pid}) ->
 handle(St, {leave, Pid}) ->
     case lists:member(Pid, St#channel_st.clients) of
        false -> {reply, user_not_joined, St};
-       true -> {replay, left, lists:delete(Pid, St#channel_st.clients)}
+       true -> {replay, left, updateState(St, clients, lists:delete(Pid, St#channel_st.clients))}
     end;
 
 handle(St, {send, Pid, Nick, Msg}) ->
     case lists:member(Pid, St#channel_st.clients) of
-       false -> {reply, user_not_joined, St};
-       true -> 
-        spawn(fun() -> send(St, Pid, Nick, Msg) end),
-               {reply, sent, St}
+        false -> {reply, user_not_joined, St};
+        true -> 
+            spawn(fun() -> send(St, Pid, Nick, Msg) end),
+            {reply, sent, St}
     end;
 
 handle(St, _Request) ->
