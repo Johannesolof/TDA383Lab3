@@ -78,6 +78,10 @@ handle(St, {join, ChanId}) ->
   {NewSt, ChanPid} = getChannelPid(St, ChanId),
   {reply, {channel_pid, ChanPid}, NewSt}; 
 
+handle(St, get_clients) ->
+  ClientPids = [Pid || {Pid, _Nick} <- St#server_st.clients],
+  {reply, {ok, ClientPids}, St};
+
 handle(St, _Request) ->
   Response = "Unknown",
   {reply, Response, St}.

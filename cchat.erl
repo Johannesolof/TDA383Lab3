@@ -27,17 +27,17 @@ send_job(Server, F, Tasks) ->
     try genserver:request(list_to_atom(Server), get_clients) of
         {ok, Clients} -> 
             Assignments = assign_tasks(Clients, Tasks),
-            Result = pmap(fun( {Client, X}) -> 
+            pmap(fun( {Client, X}) -> 
                                   genserver:request(Client, {eval, F, X}) end, 
                           Assignments);
-        Unkown -> io:fwrite("Unkown");
+        _Unknown -> io:fwrite("Unknown")
     catch _Exception:_Reason ->
         server_not_reached
     end.        
 
 assign_tasks([], _) -> [] ;
 assign_tasks(Clients, Tasks) ->        
-    [{lists:nth(((N-1) rem length(Clients)) + 1, Users), Task}
+    [{lists:nth(((N-1) rem length(Clients)) + 1, Clients), Task}
     || {N,Task} <- lists:zip(lists:seq(1,length(Tasks)), Tasks)].
 
 pmap(F, Xs) ->
