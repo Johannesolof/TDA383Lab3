@@ -55,10 +55,8 @@ disconnect(St, Pid) ->
   NewSt = updateState(St, clients, NewClients),
   {reply, disconnected, NewSt}.
 
-
-% returns channel tuple (channel id and list of members) and
-% the list of all channels except channel with ChanId
-% if the channel does not exist it is created
+% returns the pid for a channel
+% if the channel does not exist it is created and added to the server state
 getChannelPid(St, ChanId) ->
   case lists:keyfind(ChanId, 1, St#server_st.channels) of
     false ->
